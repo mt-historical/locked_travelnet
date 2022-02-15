@@ -3,6 +3,24 @@
 --   digging of such a travelnet is limited to the owner and to people with the travelnet_remove priv (useful for admins to clean up)
 -- (this can be overrided in config.lua)
 -- Autor: Sokomine
+
+
+local function on_interact(pos, _, player)
+	if not locks:lock_allow_use( pos, player ) then
+		return false
+	end
+	local meta = minetest.get_meta(pos)
+	local unconfiged = travelnet.is_falsey_string(meta:get_string("station_name",   ""))
+	if unconfiged then return end
+	local legacy_formspec = meta:get_string("formspec")
+	if not travelnet.is_falsey_string(legacy_formspec) then
+		meta:set_string("formspec", "")
+	end
+
+	local player_name = player:get_player_name()
+	travelnet.show_current_formspec(pos, meta, player_name)
+end
+
 minetest.register_node("locked_travelnet:travelnet", {
 
     description = "Shared locked travelnet box",
@@ -43,7 +61,7 @@ minetest.register_node("locked_travelnet:travelnet", {
              },
     inventory_image = "locked_travelnet_lock_inv.png",
 
-    groups = {}, --cracky=1,choppy=1,snappy=1},
+    groups = {travelnet=1}, --cracky=1,choppy=1,snappy=1},
 
     light_source = 10,
 
@@ -55,10 +73,10 @@ minetest.register_node("locked_travelnet:travelnet", {
                             "field[0.3,5.6;6,0.7;station_name;Name of this station:;]"..
                             "field[0.3,6.6;6,0.7;station_network;Assign to Network:;]"..
                             "field[0.3,7.6;6,0.7;owner_name;(optional) owned by:;]"..
-			    "button_exit[8.0,0.0;2.2,0.7;station_dig;Remove station]"..
+			    "button[8.0,0.0;2.2,0.7;station_dig;Remove station]"..
 --                            "button_exit[6.3,6.2;1.7,0.7;station_set;Store]"..
                             "field[0.3,3.0;6,0.7;locks_sent_lock_command;Locked travelnet. Type /help for help:;]"..
-                            "button_exit[6.3,3.2;1.7,0.7;locks_sent_input;Store]" );
+                            "button[6.3,3.2;1.7,0.7;locks_sent_input;Store]" );
     end,
 
     after_place_node  = function(pos, placer, itemstack)
@@ -74,26 +92,20 @@ minetest.register_node("locked_travelnet:travelnet", {
     end,
 
     on_receive_fields = function(pos, formname, fields, sender)
+			if not travelnet.is_falsey_string(fields.locks_sent_lock_command) then
+				locks:lock_handle_input( pos, formname, fields, sender )
+			elseif locks:lock_allow_use( pos, sender ) then
+				if not fields.quit then
+					local meta = minetest.get_meta(pos)
+					meta:set_string("formspec", "")
+				end
 
-                          -- if the user already has the right to use this and did input text
-                          if(      (not(fields.locks_sent_lock_command)
-                                     or fields.locks_sent_lock_command=="")
-                              and locks:lock_allow_use( pos, sender )) then
-
-                              travelnet.on_receive_fields( pos, formname, fields, sender );
-
-                          -- a command for the lock?
-                          else
-                             locks:lock_handle_input( pos, formname, fields, sender );
-                          end
+				travelnet.on_receive_fields( pos, formname, fields, sender );
+			end
     end,
 
-    on_punch          = function(pos, node, puncher)
-                          if not locks:lock_allow_use( pos, puncher ) then
-                              return false
-                          end
-                          travelnet.update_formspec(pos, puncher:get_player_name())
-    end,
+		on_punch          = on_interact,
+		on_rightclick  = on_interact,
 
     can_dig = function( pos, player )
 
