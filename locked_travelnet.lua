@@ -165,6 +165,13 @@ minetest.register_node("locked_travelnet:travelnet", {
 		travelnet.remove_box( pos, oldnode, oldmetadata, digger )
 	end,
 
+	on_destruct = function (pos)
+		local above = vector.add(pos, vector.new(0, 1, 0))
+		if minetest.get_node(above).name == "travelnet:hidden_top" then
+			minetest.remove_node(above)
+		end
+	end,
+
 	-- taken from VanessaEs homedecor fridge
 	on_place = function (itemstack, placer, pointed_thing)
 		local pos = pointed_thing.above;
