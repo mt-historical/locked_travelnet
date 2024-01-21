@@ -162,7 +162,10 @@ minetest.register_node("locked_travelnet:travelnet", {
 	end,
 
 	after_dig_node = function (pos, oldnode, oldmetadata, digger)
-		travelnet.remove_box( pos, oldnode, oldmetadata, digger )
+		local above = vector.add(pos, vector.new(0, 1, 0))
+		if minetest.get_node(above).name == "travelnet:hidden_top" then
+			minetest.remove_node(above)
+		end
 	end,
 
 	on_destruct = function (pos)
